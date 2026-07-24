@@ -1,34 +1,43 @@
 import streamlit as st
-from local_embeddings import LocalEmbeddingEngine
-from chroma_database import ChromaVectorDB
+from search import SemanticSearchEngine
 
-# Set up the look of the webpage
-st.set_page_config(page_title="docsemantic Search", page_icon="🔍", layout="centered")
+st.set_page_config(page_title="DocSemantic", layout="wide")
+st.title("🔍 DocSemantic")
 
-st.title("🔍 docsemantic AI Search")
-st.write("Type a query below to search through your indexed documents instantly.")
-
-# Initialize our background tools
+# Initialize
 @st.cache_resource
-def load_tools():
-    return LocalEmbeddingEngine(), ChromaVectorDB()
+def load_engine():
+    return SemanticSearchEngine()
 
-embedder, db = load_tools()
+engine = load_engine()
 
-# Create a clean text search bar
-query = st.text_input("What are you looking for?", placeholder="Enter keywords or questions...")
+# Show database count
+count = engine.db.collection.count()
+st.sidebar.write(f"📊 {count} chunks in database")
+
+# Search
+query = st.text_input("Ask a question:")
+results_count = st.slider("Results", 1, 10, 3)
 
 if query:
-    with st.spinner("Searching documents..."):
-        # Convert search text to vector and query the DB
-        query_vec = embedder.embed_text(query)
-        results = db.query(query_vector=query_vec, top_k=3)
-        
-        st.subheader("Top Results Found:")
+    with st.spinner("Searching..."):
+        results = engine.search(query, results_count)
         
         if results:
-            for idx, res in enumerate(results):
-                with st.expander(f"Result #{idx + 1} (Score: {res.get('score', 'N/A')})", expanded=True):
-                    st.write(res.get('text', 'No text content available.'))
+            st.success(f"Found {len(results)} results")
+            for i, r in enumerate(results):
+                with st.expander(f"Result {i+1} (Score: {r['score']}%)"):
+                    st.write(f"**Source:** {r['metadata'].get('source', 'Unknown')}")
+                    st.write(r['content'])
         else:
-            st.info("No matching text blocks found in the database.")
+            st.warning("No results found. Try a different query.")
+
+# Show document samples
+if st.sidebar.button("Show all documents"):
+    docs = engine.db.collection.get()
+    if docs['documents']:
+        st.sidebar.write("---")
+        st.sidebar.write("All chunks:")
+        for i, doc in enumerate(docs['documents']):
+            st.sidebar.write(f"{i+1}. {doc[:80]}...")
+            

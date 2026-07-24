@@ -1,38 +1,29 @@
 import os
-from local_embeddings import LocalEmbeddingEngine
-from chroma_database import ChromaVectorDB
 
-def load_and_index_documents():
-    print("--- docsemantic Document Indexer ---")
-    embedder = LocalEmbeddingEngine()
-    db = ChromaVectorDB()
-    
-    # We will look for a folder named 'documents'
-    folder_path = "./documents"
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        print("Created a './documents' folder. Put your text files inside it!")
-        return
+class DocumentReader:
+    def __init__(self, directory_path="./documents"):
+        """
+        Sets the directory where your text documents are kept.
+        Creates the folder if it doesn't exist yet.
+        """
+        self.directory_path = directory_path
+        if not os.path.exists(self.directory_path):
+            os.makedirs(self.directory_path)
 
-    for filename in os.listdir(folder_path):
-        if filename.endswith(".txt"):
-            file_path = os.path.join(folder_path, filename)
-            print(f"Reading {filename}...")
-            
-            with open(file_path, "r", encoding="utf-8") as f:
-                text = f.read()
-            
-            # Split the document into paragraph chunks
-            chunks = [p.strip() for p in text.split("\n\n") if p.strip()]
-            
-            for i, chunk in enumerate(chunks):
-                vector = embedder.embed_text(chunk)
-                db.add_document(
-                    doc_id=f"{filename}_{i}",
-                    vector=vector,
-                    text=chunk
-                )
-    print("Finished indexing all text documents!")
-
-if __name__ == "__main__":
-    load_and_index_documents()
+    def load_documents(self):
+        """
+        Scans the folder and reads the text out of every single .txt file.
+        Returns a clean list of text strings.
+        """
+        documents = []
+        
+        # Check if the folder exists and loop through all files inside it
+        if os.path.exists(self.directory_path):
+            for filename in os.listdir(self.directory_path):
+                # Only read files that end in .txt
+                if filename.endswith(".txt"):
+                    file_path = os.path.join(self.directory_path, filename)
+                    with open(file_path, "r", encoding="utf-8") as file:
+                        documents.append(file.read())
+                        
+        return documents
